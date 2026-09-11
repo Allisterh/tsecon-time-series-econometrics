@@ -60,8 +60,8 @@ Verify what you got:
 
 ```python
 import tsecon
-print(tsecon.__version__)                                       # 0.8.0
-print(sum(callable(getattr(tsecon, n)) for n in dir(tsecon)     # 173
+print(tsecon.__version__)                                       # 0.9.0
+print(sum(callable(getattr(tsecon, n)) for n in dir(tsecon)     # 179
           if not n.startswith("_")))
 ```
 
@@ -100,13 +100,13 @@ The **[Quickstart](docs/quickstart.md)** and the symptom-driven
 
 ## Documentation
 
-- **[The Guide](docs/guide/README.md)** — a free 15-chapter course in time
+- **[The Guide](docs/guide/README.md)** — a free 16-chapter course in time
   series econometrics, beginner to research-grade, mirroring the library.
 - **[Which model when?](docs/which-model-when.md)** — start from your problem,
   get routed to the right function.
 - **[Model cards & API reference](docs/reference/README.md)** — the
   assumptions, defaults, failure modes, and validation target of every
-  estimator, plus the full 173-function reference.
+  estimator, plus the full 179-function reference.
 - **[Migration guides](docs/migration/from-statsmodels.md)** — from
   statsmodels, R, and Stata, with a Rosetta glossary.
 - **[Gallery](docs/examples/README.md)** — worked figures in a professional
@@ -117,7 +117,7 @@ mkdocs serve`.
 
 ## What's inside
 
-173 functions callable from Python today: diagnostics, unit-root and
+179 functions callable from Python today: diagnostics, unit-root and
 specification tests (White/Breusch-Pagan, RESET, Chow, CUSUM); STL/MSTL
 seasonal decomposition and automatic ARIMA order selection; ARIMA, GARCH, and
 GAS score-driven volatility; VAR/SVAR with sign-restricted identification,
@@ -167,9 +167,16 @@ Two independent kinds of evidence, both reproducible:
   root where the OLS t-test rejects 28% of the time; HAC restores CI coverage;
   the AR(1) estimator is consistent with the textbook finite-sample bias.
 - **[Benchmarks](benchmarks/)** — a parity-first harness: estimates must match a
-  reference *before* anything is timed. On a release build, ADF is ~13× and
-  VAR(2) ~24× faster than statsmodels — and GARCH QMLE is ~4× *slower* than
-  `arch`, which we publish too.
+  reference *before* anything is timed. All 65 parity metrics across 25
+  operations pass. On a release build in the Linux CI-style container
+  (Intel(R) Xeon(R) Processor @ 2.80GHz, 4 cores) tsecon is faster on 22 of 25 operations —
+  ADF 14.3×, VAR(2) 6.8×, Jarque-Bera 122.6× and the Christiano-Fitzgerald
+  filter 22.8× the speed of statsmodels — and slower on 3, which we publish
+  too: GARCH(1,1) QMLE at 0.46× the speed of `arch` (about 2× *slower*), EGARCH at
+  0.15×.
+  The parity matrix and every timing live on the
+  [speed dashboard](docs/reference/speed.md), rendered from the
+  committed [`benchmarks/results/latest.json`](benchmarks/results/latest.json).
 
 ## Contributing
 

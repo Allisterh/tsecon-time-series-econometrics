@@ -546,6 +546,163 @@ if lin["p_value"] < 0.05:
 
 ---
 
+## `setar_threshold_ci` — Hansen (1997/2000) threshold confidence set
+
+**What it estimates.** A confidence set for the SETAR threshold `γ` by
+inverting Hansen's likelihood-ratio statistic over the candidate grid. The fit
+underneath is *exactly* `setar`'s (same grid, trimming, delay convention —
+`threshold`, `thresholds` and `ssr_path` are bit-identical); on top of it the
+profile `LR_n(γ) = n·(S(γ) − S_min)/S_min` is compared with the closed-form
+critical value `c = −2·ln(1 − √level)` — the `level` quantile of
+`P(ξ ≤ x) = (1 − e^{−x/2})²`, Hansen (2000) Table 1: 4.50 / 5.94 / 7.35 /
+10.59 at 80 / 90 / 95 / 99% — and the set is `{γ : LR_n(γ) ≤ η²·c}`. It
+always contains the estimate (LR = 0 there), is typically **asymmetric**, and
+can be **disjoint** when the SSR profile has several near-minimal valleys, so
+it is returned as a list of closed `intervals` (grid endpoints, as Hansen's own
+programs report), with `is_connected` and the convex hull `ci_low`/`ci_high` —
+never silently collapsed to one interval. This is the "threshold inference"
+the roadmap row asked for: the reported SEs of `setar` are for the regression
+coefficients, and the threshold's sampling distribution is nonstandard.
+
+**Assumptions.** Hansen's (2000) "small threshold effect" frame — the regime
+difference shrinks with the sample so that the LR limit is free of nuisance
+parameters; with a *fixed* effect the set is asymptotically **conservative**
+(covers at least nominally). Homoskedastic errors for the plain set;
+`het_robust=True` applies the §3.4 scale
+`η² = E[e²(x'δ)² | q = γ] / (σ² E[(x'δ)² | q = γ])`, estimated as Hansen's
+programs do — regress `(x'δ̂)²` and `ê²(x'δ̂)²` on a quadratic in the
+threshold variable `y_{t−d}` (with intercept), ratio of the fitted values at
+`γ̂`, divided by `σ̂² = S_min/n`. A threshold effect must exist for `η²` to be
+identified: with `δ̂ ≈ 0` the quadratic fit can be *negative* at `γ̂`, and the
+library refuses with a teaching error instead of reporting a negative scale.
+
+**When to use (and when not).** After `setar_test` has rejected linearity and
+`setar` has an estimate: report the *set*, not `γ̂` alone — its width (and its
+possible fragmentation) is the honest statement of how well the threshold is
+identified; a flat SSR valley gives a wide or disjoint set. Use
+`null_threshold=γ₀` to test a specific economic threshold (the p-value
+`pvalue_at_threshold = 1 − (1 − e^{−LR/2})²` is the test inversion at that
+point; LR is a step function, so `γ₀` is evaluated at the largest candidate
+`≤ γ₀`, reported as `null_threshold_used`). Use `slope_level=0.95` for the
+§3.3 **conservative slope intervals**: the union, over every candidate in the
+`slope_region_level` threshold set (default 0.80, Hansen's applied
+convention), of the conventional per-regime intervals `b_j(γ) ± z·se_j(γ)`
+(classical per-regime SEs as `setar` reports, or HC0 under `het_robust`) —
+returned as `slope_ci_low`/`slope_ci_high`, each `[[low regime], [high
+regime]]`. Not for STAR (no threshold to invert on) or for Markov switching;
+not a substitute for `setar_test` — on linear data the set is simply most of
+the grid (the fixture's linear AR(1) case returns seven intervals covering
+87 of 140 candidates).
+
+**Key arguments and defaults (and why).** `p`, `delay=1`/`delays`,
+`trim=0.15`, `constant=True` exactly as `setar` (the set must sit on the
+reported fit); `level=0.95`; `het_robust=False` (the correction is noisy —
+see below — so it is opt-in, as in Hansen's programs); `slope_level=None`
+(slope unions cost one refit per candidate in the region);
+`slope_region_level=None` (0.80 when slope intervals are requested; passing it
+*without* `slope_level` raises, since it would be inert); `null_threshold=None`
+(must lie inside `[thresholds[0], thresholds[-1]]` — outside the trimmed grid
+the implied split violates the trimming and LR is undefined).
+
+**How to read the output.** `lr_stat` over `thresholds` (plot it against the
+horizontal line `lr_crit_scaled` — the set is where the profile dips below);
+`intervals`, `n_intervals`, `is_connected`, `ci_low`/`ci_high`, `in_set`,
+`n_in_set`; `lr_crit` (closed form) and `lr_crit_scaled = eta2·lr_crit`;
+`eta2` (exactly 1 unless `het_robust`); `null_threshold_used`, `lr_at_null`,
+`pvalue_at_threshold`; the slope block (`slope_region_low/high`,
+`slope_n_region`, `slope_ci_low/high`). A set of one or two candidates on a
+strongly separated SETAR is normal (the threshold is superconsistent, rate
+`n`); a set spanning much of the grid says the split is weakly identified.
+
+**Failure modes.** Small threshold effects in short samples under-cover
+slightly (measured below); `η̂²` by the quadratic-regression convention is
+noisy and occasionally unidentified (measured below); the reported interval
+endpoints are grid values, so the set as a subset of the real line extends
+each run up to (not including) the next candidate — `null_threshold` is the
+exact evaluation; delay search (`delays`) is conditioned on, not accounted
+for, in the set.
+
+**Validated against.** No third-party threshold-CI implementation runs in the
+fixture container (Hansen's site is unreachable from the build container; no R
+`tsDyn`), so the golden (`fixtures/setar_ci.json`) is graded honestly as
+*documented formula* for the closed forms — critical values and p-values
+pinned at 1e-14, Table 1 reproduced to the printed decimals — and as a
+*cross-implementation transcription* for the rest: an independent NumPy
+implementation of the LR profile, the `η²` regressions, the interval/hull
+construction, the null-threshold inversion and the slope unions, pinned at
+1e-10 over seven cases (a two-candidate set, a seven-interval set on linear
+data, a three-interval set under delay search, `η² = 0.35` on a
+heteroskedastic SETAR, slope unions with classical and HC0 SEs). The fit is
+asserted bit-identical to `setar`, and the general `threshold_regression_ci`
+(Rust) fed the SETAR design by hand reproduces the wrapper bit for bit.
+
+**Coverage is measured, not assumed** (`setar_ci_properties.rs`, 500 seeded
+replications per cell, the true threshold covered iff `LR_n(γ₀) ≤ η²·c`):
+
+| design | n | 90% set | 95% set |
+|---|---|---|---|
+| threshold regression after Hansen (2000, §5), effect 0.5 | 100 | 0.886 | 0.930 |
+| | 250 | 0.926 | 0.948 |
+| | 500 | 0.946 | 0.976 |
+| threshold regression after Hansen (2000, §5), effect 1.0 | 100 | 0.950 | 0.972 |
+| | 250 | 0.964 | 0.980 |
+| | 500 | 0.956 | 0.978 |
+| SETAR(2): `1.0 + 0.5y₋₁ + 0.2y₋₂` below 0, `−1.0 + 0.3y₋₁ − 0.2y₋₂` above | 100 | 0.960 | 0.976 |
+| | 250 | 0.964 | 0.982 |
+| | 500 | 0.966 | 0.984 |
+
+The threshold-regression design is `y = θ₁'x·1{q ≤ 2} + θ₂'x·1{q > 2} + e`,
+`x = (1, z)`, `z ~ N(0,1)`, `q ~ N(2,1)`, `θ₁ = 0`, `θ₂ = (δ, δ)`, `e ~
+N(0,1)`, run through the Rust `threshold_regression_ci` (the same
+construction on a user-supplied split; the paper's own estimator). Read
+against Hansen's theory: at or above nominal everywhere except the
+small-effect `n = 100` cell (0.886 at 90%, one MC standard error below), and
+increasingly conservative as the effect grows or the sample lengthens — what
+"asymptotically conservative for a fixed effect" predicts. **The
+heteroskedasticity correction**, on the same design with `e = ε·exp((q−2)/2)`
+(variance 1 at `γ₀` against a pooled `e^{1/2}`, so the true `η² = 0.607`),
+`n = 250`, effect 1.0: the plain set over-covers (0.992 / 0.998); `η̂²` is
+identified in 468 of 500 replications with mean 0.617 but interdecile range
+0.31–0.90; the corrected set then covers 0.915 / 0.938 conditional on
+identification (0.856 / 0.878 if the 32 refusals are counted as misses) — a
+few points under nominal, the price of the noisy scale estimate, which is why
+`het_robust` is opt-in and documented as such. Structural properties are
+asserted outright: the set contains `γ̂` with `LR = 0` exactly, sets nest in
+the level, and the profile, membership, `η²` and p-value are invariant to
+affine transformations of `y` (interval endpoints map affinely).
+
+**Not reproduced.** Hansen's (1997) US unemployment application could not be
+obtained here — his site and FRED are both blocked from the build container —
+so no published application is replicated; nothing about it is quoted.
+
+**References.** Hansen (1997, *SNDE* 2(1)); Hansen (2000, *Econometrica*
+68(3)); Chan (1993, *Annals of Statistics* 21(1)).
+
+```python
+import numpy as np, tsecon
+rng = np.random.default_rng(1)
+y = np.zeros(400)
+for t in range(1, 400):
+    if y[t-1] <= 0.0:
+        y[t] = 1.0 + 0.6 * y[t-1] + rng.standard_normal()
+    else:
+        y[t] = -1.0 + 0.2 * y[t-1] + rng.standard_normal()
+
+ci = tsecon.setar_threshold_ci(y, p=1, delay=1, level=0.95,
+                               slope_level=0.95, null_threshold=0.0)
+print("threshold:", round(ci["threshold"], 3), " 95% set:",
+      [[round(a, 3), round(b, 3)] for a, b in ci["intervals"]],
+      " connected:", ci["is_connected"])
+print("p-value of gamma_0 = 0:", round(ci["pvalue_at_threshold"], 3))
+print("conservative 95% CIs, low regime: ",
+      np.round(ci["slope_ci_low"][0], 2), np.round(ci["slope_ci_high"][0], 2))
+# The heteroskedasticity-robust set (Hansen 2000, section 3.4):
+robust = tsecon.setar_threshold_ci(y, p=1, het_robust=True)
+print("eta^2:", round(robust["eta2"], 3), " set:", robust["intervals"])
+```
+
+---
+
 ## `star` — smooth-transition autoregression (LSTAR / ESTAR)
 
 **What it estimates.** A two-regime STAR(p) (Teräsvirta 1994): an AR(p) whose
@@ -936,11 +1093,10 @@ observable — output growth above/below a stall speed, spreads in/out of a
 stress band — when you want per-regime coefficient matrices you can read. Not
 for unobserved regimes (Markov-switching), not for smooth transitions, and
 not before `threshold_var_test` says a threshold exists. **Scope honesty:**
-two regimes only, and **no regime-dependent (generalized) impulse responses**
-— GIRFs à la Koop-Pesaran-Potter (1996) require simulating the fitted
-nonlinear system over shock/history distributions and are *deferred*; pointing
-the linear `var_irf` machinery at one regime's matrices would answer a
-question nobody asked, so the library declines to.
+two regimes only. Impulse responses of a TVAR are *generalized* ones —
+`threshold_var_girf` below simulates them à la Koop-Pesaran-Potter (1996);
+pointing the linear `var_irf` machinery at one regime's matrices would answer
+a question nobody asked, so the library does not.
 
 **Key arguments and defaults (and why).** `p` (lags per regime — remember each
 regime spends `m = k·p + 1` coefficients *per equation*); `threshold_index=0`,
@@ -982,6 +1138,110 @@ asserted).
 
 **References.** Tong (1983); Tsay (1998, JASA); Lo & Zivot (2001,
 Macroeconomic Dynamics); Hubrich & Teräsvirta (2013, survey).
+
+### Generalized impulse responses — `threshold_var_girf`
+
+**What it computes.** The Koop-Pesaran-Potter (1996) generalized impulse
+response of the fitted TVAR,
+`GIRF(h, δ, ω_{t−1}) = E[y_{t+h} | u_t + δ, ω_{t−1}] − E[y_{t+h} | ω_{t−1}]`,
+by simulation: for each conditioning **history** `ω_{t−1}` (an actual lag
+window of the sample) and each of `n_draws` future-innovation draws, the
+fitted nonlinear system is simulated forward twice with the *same* draws —
+once with the shock added to the impact-period innovation, once without — and
+the paired difference is averaged. Every period, each simulated path reads its
+own regime from its own window (the threshold variable at the fitted delay)
+and uses that regime's coefficients *and* that regime's ML residual covariance
+to scale the common standard-normal draw, so a path that crosses `γ` switches
+both. This is the shared `tsecon-var` GIRF engine (`tsecon_var::girf`) applied
+to the TVAR; `var_girf` is the same engine on a linear VAR.
+
+**Conventions (all pinned by the fixture).** *Histories*: every window
+`t ≥ max(p, d)`, in time order; `regime="low"|"high"` keeps the windows whose
+shock-date regime (`y_{threshold_index, t−d} ≤ γ`) is that one; `histories=m`
+draws a seeded subsample of `m` of them. *Shock*: `"orthogonal"` — `size`
+standard deviations of the `shock_var`-th Cholesky-orthogonalized innovation
+of the regime the history is in at the shock date; `"generalized"` — the
+Pesaran-Shin (1998) shock of that regime, `size·Σ_s e_j / √σ_jj`, no ordering
+assumption. Because the impact shock is scaled by the *shock-date regime's*
+covariance, a "one-standard-deviation shock" has a different raw size in the
+two regimes when their covariances differ — `shock_size_used` reports both,
+and a regime comparison on a volatility-switching fit should be read with
+that in mind. *Innovations along the path* come from the covariance of the
+regime the path is in (Balke 2000's regime-by-regime draws; R `tsDyn`'s `GIRF`
+pools residuals because its `TVAR` fits one covariance — its exact scheme is
+stated from its documentation, CRAN being unreachable from the build
+container). *Common random numbers*: the two paths share every draw including
+the impact period's, so the shock enters as a perturbation `u_t + δ` — in a
+linear model this makes the paired difference `Ψ_h δ` exactly, for every draw;
+in a nonlinear one it differs from the "innovation set to δ" reading of KPP by
+the averaging over the impact-period draw. *Antithetic* `(+z, −z)` pairs
+(`antithetic=True`, even `n_draws`); the Monte Carlo standard error uses the
+pair means.
+
+**Key arguments and defaults (and why).** The fit's own `p`, `threshold_index`,
+`delay`/`delays`, `trim`, `constant`; `shock_var=0`, `size=1.0` (negative for
+an adverse shock — simulate the sizes and signs you want to talk about, they
+are *arguments* now), `shock="orthogonal"`; `horizon=20`; `n_draws=500` with
+`antithetic=True` (the Monte Carlo error falls like `1/√n_draws` — measured
+ratio 4.02 between 32 and 512 draws against a 8192-draw reference, theory 4);
+`seed=0`; `regime="all"` (the per-regime averages come back anyway);
+`histories=None` (all windows — the engine is fast enough that subsampling is
+a choice, not a necessity; an int at or above the number of selected windows
+uses all of them, reported in `n_histories`); `bands=(0.16, 0.84)`.
+
+**How to read the output.** `girf[h][variable]` is the average over the used
+histories; `lower`/`upper` are the `bands` quantiles **across histories** —
+the KPP history-conditional distribution, and the honest measure of how much
+the answer depends on where the economy stood (a wide band with a small
+`mc_se` is a finding, not noise); `girf_low_regime`/`girf_high_regime` split
+the same histories by shock-date regime; `per_history` keeps every
+history-conditional path; `mc_se` is the simulation error of `girf`
+(histories fixed); `draw_sd` and `draw_lower`/`draw_upper` describe the spread
+of a *single realized* response across future-innovation draws. Estimation
+uncertainty (the threshold, coefficients and covariances are estimated) is
+**not** in any of these — bootstrap-over-refits bands are the roadmap's
+next step, not something this call fakes.
+
+**Failure modes.** A regime with an explosive root makes the simulated paths
+overflow (refused with a teaching error — check `threshold_var`'s per-regime
+matrices); a regime visited by a handful of windows gives a regime average
+over a handful of histories (`n_low_histories`/`n_high_histories` say so); the
+antithetic option **does not buy variance here** — measured ratio 1.000 on the
+fitted TVAR and 0.953 on a toy threshold model, because the paired difference
+in a threshold model is dominated by regime-crossing events, which are close
+to even functions of the innovation, so the odd component the pairs cancel is
+small; it stays available (it is the classic KPP device and costs nothing) but
+more draws are what shrink `mc_se`.
+
+**Validated how (honest grade).** Three layers, none a third-party TVAR GIRF
+(no `tsDyn` in the container). (1) **Exact linear reduction**: with both
+regimes set equal the TVAR GIRF equals `Ψ_h P e_j` (and the Pesaran-Shin form)
+from `tsecon_var::ma_rep` at **1e-12** for every history, and the
+across-history band collapses (`tvar_girf_properties.rs`); the engine itself
+reproduces statsmodels `VARResults.irf(orth=True)` and the Pesaran-Shin closed
+form at 1e-12 on the linear VAR (`fixtures/girf.json`, `var_girf`). (2) The
+**regime-switching simulation** is pinned at **1e-10** against an independent
+NumPy transcription of the documented engine that reproduces its Philox
+streams through NumPy's own `SeedSequence`/`Philox`/`Generator.random`
+(`generate_girf_fixtures.py`: four cases — orthogonal/generalized, ±sizes,
+`regime="all"|"low"|"high"`, a seeded subsample — pinning `girf`, the bands,
+every per-history path, `mc_se`, `draw_sd`, the regime averages, regimes and
+dates). (3) **Measured nonlinearity** on a strongly asymmetric k = 3 TVAR(1)
+DGP at T = 600 (`tvar_girf_properties.rs`, 400 antithetic draws, 120
+histories; `t` = the difference over its Monte Carlo standard error): peak
+|GIRF(+1)| **0.690**; sign asymmetry max |GIRF(+1) + GIRF(−1)| = **0.149**
+(t = 37); size non-proportionality max |GIRF(2) − 2·GIRF(1)| = **0.040**
+(t = 11.5); regime dependence max |low − high| = **0.111** (t = 60; 340 low,
+259 high histories). Bit-identical at 1 vs 4 rayon threads and across two
+fresh processes with the same seed (asserted). **Speed (indicative,
+single machine, 4 threads):** T = 600, k = 3, 200 histories × 500 antithetic
+draws × horizon 20 (4.2M simulated periods) runs in **0.23 s** in the Rust
+release build and **0.63 s** end to end through Python including the fit —
+the "hours in an interpreted loop" of chapter 13, in well under a second.
+
+**References.** Koop, Pesaran & Potter (1996, JoE 74); Pesaran & Shin (1998,
+Economics Letters 58); Balke (2000, REStat 82); Kilian & Lütkepohl (2017),
+ch. 18.
 
 ---
 

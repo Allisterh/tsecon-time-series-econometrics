@@ -17,7 +17,7 @@ preserved exactly; adopting them is additive.
 
 ## [Testing & validation](testing.md)
 
-The single map of how the library is tested: nine tiers from Rust goldens to a
+The single map of how the library is tested: ten tiers from Rust goldens to a
 published-result replication, what each can and cannot prove, the commands to
 run them, and an honest list of what is *not* covered. Start here if you are
 deciding whether to trust a number this library produced.
@@ -30,6 +30,14 @@ documented closed form, with the fixture, the test, and the tolerance for each.
 Correctness, made auditable. Its runtime companion is the
 [Monte Carlo suite](../examples/monte-carlo.md), which verifies the statistical
 *properties* (size, coverage, consistency) that a fixture match cannot.
+
+## [Speed dashboard](speed.md)
+
+The benchmark harness's output as a page: the cross-library **parity matrix**
+first (every operation tsecon and statsmodels/`arch`/SciPy/scikit-learn both
+compute, with the measured disagreement and the asserted tolerance), then the
+timings with the machine and build that produced them, then the commands that
+regenerate it. Rendered from a committed JSON, never typed by hand.
 
 ## Model cards
 
@@ -47,18 +55,23 @@ method fits your problem and how to trust its output.
 | [ARIMA](model-cards/arima.md) | `arima_fit`, `ar_loglik` |
 | [Spectral analysis](model-cards/spectral.md) | `periodogram`, `welch`, `coherence` |
 | [Volatility](model-cards/volatility.md) | `garch_fit`, `gas_volatility`, `dcs_local_level`, `ccc_garch`, `dcc_garch` |
-| [VAR / SVAR](model-cards/var-svar.md) | `var_fit`, `var_irf`, `var_irf_bands`, `var_fevd`, `var_granger`, `var_forecast`, `sign_restricted_svar`, `zero_sign_svar`, `favar`, `connectedness` |
+| [VAR / SVAR](model-cards/var-svar.md) | `var_fit`, `var_irf`, `var_irf_bands`, `var_fevd`, `var_granger`, `var_forecast`, `sign_restricted_svar`, `zero_sign_svar`, `favar`, `connectedness`, `var_girf` |
 | [Structural identification (advanced)](model-cards/structural-identification.md) | `long_run_svar`, `max_share_svar`, `proxy_svar`, `hetero_svar` |
 | [Local projections](model-cards/local-projections.md) | `lp`, `lp_iv`, `lp_multiplier`, `lp_state`, `smooth_lp` |
 | [Bayesian](model-cards/bayesian.md) | `bvar_fit`, `bvar_hierarchical`, `bvar_ssvs`, `bvar_irf_draws`, `mcmc_diagnostics` |
 | [GMM](model-cards/gmm.md) | `iv_gmm`, `gmm_nonlinear` |
-| [Cointegration & regimes](model-cards/cointegration-regime.md) | `johansen`, `vecm`, `markov_switching_ar` |
+| [Cointegration & regimes](model-cards/cointegration-regime.md) | `johansen`, `vecm`, `ou_fit`, `spread_zscore`, `markov_switching_ar`, `setar`, `setar_test`, `setar_threshold_ci`, `star`, `star_eval`, `star_test`, `threshold_vecm`, `hansen_seo_test`, `threshold_var`, `threshold_var_test`, `threshold_var_girf` |
 | [Forecasting](model-cards/forecasting.md) | `backtest`, `dm_test`, `cw_test`, `gw_test`, `theta_forecast`, `accuracy` |
 | [Machine learning](model-cards/machine-learning.md) | `ridge`, `lasso`, `elastic_net`, `adaptive_lasso`, `lasso_path`, `cv_splits` |
-| [Panel](model-cards/panel.md) | `panel_fe`, `panel_lp`, `mean_group_var`, `panel_mean_group`, `panel_pmg` |
+| [Structured penalties & post-selection](model-cards/ml-structured.md) | `group_lasso`, `post_lasso`, `pds_lasso` |
+| [Kernel methods](model-cards/ml-kernel.md) | `kernel_ridge`, `kernel_regression` |
+| [Regression trees & random forests](model-cards/ml-trees.md) | `regression_tree`, `random_forest` |
+| [L1 trend filtering & boosting](model-cards/ml-convex.md) | `l1_trend_filter`, `boosting` |
+| [Neural regressors](model-cards/ml-neural.md) | `mlp_regression`, `echo_state_network` |
+| [Panel](model-cards/panel.md) | `panel_fe`, `panel_distributed_lag`, `panel_lp`, `mean_group_var`, `panel_mean_group`, `panel_pmg` |
 | [Panel unit-root tests](model-cards/panel-unit-root.md) | `panel_unit_root` (LLC, IPS, Fisher/Maddala-Wu-Choi) |
 | [Nowcasting & MIDAS](model-cards/nowcasting-midas.md) | `dfm_nowcast`, `dfm_news`, `midas_weights`, `umidas`, `weighted_midas` |
-| [Term structure](model-cards/term-structure.md) | `nelson_siegel`, `svensson`, `dynamic_ns`, `acm_term_premium` |
+| [Term structure](model-cards/term-structure.md) | `nelson_siegel`, `svensson`, `dynamic_ns`, `acm_term_premium`, `jsz_fit`, `jsz_loadings` |
 | [Realized volatility](model-cards/realized-vol.md) | `realized_measures`, `har_rv`, `realized_quarticity`, `tripower_quarticity`, `bns_jump_test`, `realized_range` |
 | [Predictive regressions & IVX](model-cards/predictive-regressions.md) | `predictive_regression`, `ivx_test` |
 | [Recession probability](model-cards/recession.md) | `recession_probit` |
@@ -70,3 +83,4 @@ method fits your problem and how to trust its output.
 | [Quantile regression & growth-at-risk](model-cards/quantile.md) | `quantile_regression`, `quantile_lp`, `growth_at_risk` |
 | [Functional shocks (FVAR/FLP)](model-cards/functional-shocks.md) | `functional_pca`, `flp`, `flp_scenario`, `fvar_scenario` |
 | [Structural breaks](model-cards/structural-breaks.md) | `bai_perron`, `sup_f_test` |
+| [Static copulas](model-cards/copulas.md) | `pseudo_obs`, `copula_fit`, `copula_select` |

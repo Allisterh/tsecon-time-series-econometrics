@@ -24,27 +24,28 @@ command needs the `--exclude tsecon-python` caveat described
 
 | Tier | Count | Command |
 |---|---|---|
-| Rust tests (total) | **1775 passed, 0 failed, 10 ignored** | `cargo test --workspace`, result lines summed |
-| — integration tests in `crates/*/tests/` | 1479 | |
-| — unit tests in `src/` (`#[cfg(test)]`) | 242 | |
-| — documentation tests | 54 | |
-| Python binding tests | **1526 passed, 0 failed, 1 skipped** in 474 s with the full extras venv (statsmodels/arch/scikit-learn/linearmodels/matplotlib/mapie present; extras-gated files skip collection or at runtime without them) | `.venv/bin/python -m pytest bindings/python/tests -q` |
+| Rust tests (total) | **1839 passed, 0 failed, 10 ignored** | `cargo test --workspace`, result lines summed |
+| — integration tests in `crates/*/tests/` | 1538 | |
+| — unit tests in `src/` (`#[cfg(test)]`) | 245 | |
+| — documentation tests | 56 | |
+| Python binding tests | **1727 passed, 0 failed, 1 skipped** in 366 s with the full extras venv (statsmodels/arch/scikit-learn/linearmodels/matplotlib/mapie present; extras-gated files skip collection or at runtime without them) | `.venv/bin/python -m pytest bindings/python/tests -q` |
 | Crates | 43, **every one** with a `tests/` directory | |
-| Golden fixtures | 91 JSON files, produced by 72 generator scripts | `fixtures/` |
-| Public Python functions | 173, **all 173** exercised through `tsecon.<name>(…)` in the binding suite | [Tier 4](#tier-4-python-binding-tests) shows the check |
+| Golden fixtures | 100 JSON files, produced by 81 Python generator scripts (plus two R scripts) | `fixtures/` |
+| Public Python functions | 179, **all 179** exercised through `tsecon.<name>(…)` in the binding suite | [Tier 4](#tier-4-python-binding-tests) shows the check |
 
-Of the 9 ignored tests, 7 are in `tsecon-var` (three stored-bit-pattern
+Of the 10 ignored tests, 7 are in `tsecon-var` (three stored-bit-pattern
 fingerprints that are platform-specific, two release-only Monte Carlo runs, one
-timing test, and one that emits a fixture snapshot) and 2 are in `tsecon-panel`
-(the LP-DiD and SPJ release-only Monte Carlo runs); each `#[ignore]` states its
-reason.
+timing test, and one that emits a fixture snapshot), 2 are in `tsecon-panel`
+(the LP-DiD and SPJ release-only Monte Carlo runs), and 1 is in `tsecon-ml`
+(the 600-replication post-double-selection coverage measurement); each
+`#[ignore]` states its reason.
 
-Of the 1489 integration tests — the 1479 that pass plus the 10 `#[ignore]`d —
-**316 are golden tests** and **647 are property tests**. The goldens live in
-67 `*golden*.rs` files across 39 crates (`golden.rs` in most, with additional
+Of the 1548 integration tests — the 1538 that pass plus the 10 `#[ignore]`d —
+**334 are golden tests** and **688 are property tests**. The goldens live in
+77 `*golden*.rs` files across 39 crates (`golden.rs` in most, with additional
 per-surface files such as `engle_granger_golden.rs`, `irf_bands_golden.rs`,
 `proxy_bands_golden.rs`, `ou_golden.rs`, and `star_golden.rs`); the property
-tests live in 57 `*propert*.rs` files across 38 crates. The remainder are
+tests live in 67 `*propert*.rs` files across 38 crates. The remainder are
 validation (111 tests in 11 `*validation*.rs` files), cross-check, and
 reproducibility suites described below.
 
@@ -81,7 +82,7 @@ is one of exactly three things:
    coverage, consistency, parameter recovery).
 
 The [validation matrix](validation-matrix.md) says which of the three each
-method family gets, row by row: **77 estimator-family rows**, plus 18 more
+method family gets, row by row: **88 estimator-family rows**, plus 18 more
 covering the foundational numerics. It grades each row rather than averaging
 over them, and several rows are explicitly **mixed** — where they are, the row
 grades each leg separately and gives each its own tolerance.
@@ -256,7 +257,7 @@ There are also targeted cross-check and reproducibility suites —
 **What it proves:** the *shipped* module reproduces the same goldens the Rust
 core hits, and that nothing is lost or corrupted crossing the PyO3 boundary.
 
-1526 tests in 99 files. 53 of the 96 fixture JSONs are named by file in the tests and reloaded there (the count is `grep` for a `*.json` literal per test file; the 58-of-91 an earlier revision printed used a broader, unrecorded rule and is not comparable), checked
+1727 tests in 106 files. 67 of the 100 fixture JSONs are named by file in the tests and reloaded there (the count is the set of `*.json` literals in `bindings/python/tests/*.py` that name an existing file under `fixtures/`, deduplicated across the suite), checked
 a second time through the Python API, so the guarantee is end-to-end rather
 than core-only. But the suite adds four things the Rust tests structurally
 cannot cover:
@@ -271,13 +272,13 @@ cannot cover:
   facades (nine `test_results_*.py` files, 213 tests) assert key by key that the
   object *is* the dict the raw function has always returned, with rendering
   added on top and nothing removed.
-- **Error propagation.** 337 `pytest.raises` assertions check that a Rust
+- **Error propagation.** 556 `pytest.raises` assertions check that a Rust
   `Err(...)` surfaces as a Python `ValueError`/`RuntimeError` with a message
   you can act on, rather than an abort. `test_gmm_nonlinear.py` goes the other
   direction too: a Python moment function that raises must propagate its
   message back out through the Rust Nelder-Mead driver
   (`match="boom from the Python moment function"`).
-- **Surface completeness.** The module exports 173 public callables. This is
+- **Surface completeness.** The module exports 179 public callables. This is
   checked by running the check, not by asserting the answer:
 
   ```sh
@@ -287,7 +288,7 @@ cannot cover:
   txt = ''.join(p.read_text() for p in pathlib.Path('bindings/python/tests').glob('*.py'))
   print(len(fns), sorted(f for f in fns if not re.search(rf'tsecon\.{f}\s*\(', txt)))
   "
-  # 173 []
+  # 179 []
   ```
 
   The honest output of this check was not always empty, and the history is
@@ -554,12 +555,19 @@ volatility fits — checked against statsmodels, `arch`, `scipy.signal` and
 scikit-learn. The parity matrix (65 metrics, all PASS) is the deliverable: it
 is machine-independent, unlike every timing number.
 
+The harness's `--json` output is rendered into the [speed dashboard](speed.md)
+(parity matrix first, then the timings with their machine and build) by
+`benchmarks/render_dashboard.py`; the committed `benchmarks/results/latest.json`
+is the run behind that page.
+
 The harness also auto-detects debug builds and refuses to let their timings be
 read as speed claims. The published example run is a case study in why: the
 parity table is identical on either build, and the timings are not. On a
-release wheel tsecon is faster on 22 of the 25 operations, and the three it
-loses are published as losses rather than dropped — GARCH at `0.41x`, GJR at
-`0.44x`, EGARCH at `0.10x`, each against `arch`. `benchmarks/README.md`
+release build tsecon is faster on 22 of the 25 operations, and the three it
+loses are published as losses rather than dropped — GARCH at `0.46x`, GJR at
+`0.60x`, EGARCH at `0.15x`, each against `arch` (the committed Linux run
+behind the [speed dashboard](speed.md); the macOS run in `benchmarks/README.md`
+had them at `0.41x`/`0.44x`/`0.10x`). `benchmarks/README.md`
 deliberately publishes *no* debug timing table, on the stated grounds that one
 would only get quoted; for scale, an earlier four-case version of the suite ran
 3–21× faster than statsmodels in release and 2–6× **slower** in debug, with
@@ -593,9 +601,9 @@ library with lying documentation.
 
 ## 3 · The Python test files
 
-38 of the 99 files in
+38 of the 106 files in
 [`bindings/python/tests/`](../../bindings/python/tests), with collected test
-counts. The table has not kept pace with the directory, and the 55 files not
+counts. The table has not kept pace with the directory, and the 68 files not
 listed here are a gap in *this table*, not in the suite — every one of them
 runs on every invocation of the command above:
 
@@ -703,7 +711,7 @@ across all binaries — cargo prints one per test target, not one total.
 ```sh
 cargo test --workspace --exclude tsecon-python > /tmp/rust.txt 2>&1
 grep "test result" /tmp/rust.txt | awk '{p+=$4; f+=$6} END {print p, "passed,", f, "failed"}'
-# 1775 passed, 0 failed
+# 1839 passed, 0 failed
 ```
 
 ### Build a release extension before timing anything
@@ -723,7 +731,7 @@ likelihood was made allocation-free and given an analytic gradient. The debug
 maturin develop --release -m bindings/python/Cargo.toml
 ```
 
-With a release extension installed, the full Python suite runs in the 474 s in
+With a release extension installed, the full Python suite runs in the 335 s in
 the table above and `docs/examples/monte_carlo.py` in **3.0 s** on this
 machine. Do not quote any timing taken against a debug build.
 
@@ -817,7 +825,7 @@ discover.
   `glp_sw_panel.csv`, `hamilton_gnp.csv`, `sunspots_tong.csv`, all under
   `fixtures/`), so every one of them is reproduced offline and cannot break on
   a provider's URL change.
-- **Benchmarks compare 25 of 173 functions.** The parity gate covers the unit-root
+- **Benchmarks compare 25 of 179 functions.** The parity gate covers the unit-root
   tests, the diagnostics, VAR and its IRF/FEVD/Granger, Johansen, the filters,
   the spectra, ridge/elastic-net, and the GARCH family — a broad spot check, not a
   library-wide cross-library audit — that job belongs to the fixtures.

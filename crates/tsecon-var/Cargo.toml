@@ -4,6 +4,7 @@ version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
+publish.workspace = true
 description = "Reduced-form VAR estimation and analysis for the tsecon time-series econometrics library: equation-by-equation OLS with statsmodels-convention information criteria, lag-order selection on a common sample, companion-form stability roots, Granger-causality F tests, orthogonalized and non-orthogonalized impulse responses, forecast-error variance decompositions, and iterated forecasts with asymptotic intervals"
 
 [dependencies]
@@ -24,6 +25,11 @@ tsecon-stats = { path = "../tsecon-stats" }
 tsecon-ident = { path = "../tsecon-ident" }
 tsecon-bootstrap = { path = "../tsecon-bootstrap" }
 tsecon-rng = { path = "../tsecon-rng" }
+# The Koop-Pesaran-Potter GIRF engine in `src/girf.rs` parallelizes over
+# conditioning histories with rayon (one SeedSequence-spawned substream
+# tree per history, reductions in history order, so the result is
+# bit-identical at any thread count — the `tsecon-ml` forest pattern).
+rayon = "1"
 
 [dev-dependencies]
 # float_roundtrip: fixture doubles must parse to the exact bit pattern NumPy

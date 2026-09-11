@@ -18,7 +18,7 @@ affiliations:
     index: 1
 date: 17 July 2026
 # Draft — before JOSS submission, confirm author metadata (ORCID, affiliation)
-# and reset `date` to the submission date: the paper describes 0.8.0, whose
+# and reset `date` to the submission date: the paper describes 0.9.0, whose
 # measured test and count figures were taken on 30 August 2026, so the current
 # placeholder predates the artifact it documents.
 bibliography: paper.bib
@@ -37,7 +37,7 @@ Python and NumPy; the estimation kernels (state-space filtering, bootstrap and
 posterior resampling, sign-restriction rotation sampling, spectral transforms,
 optimization) are implemented in Rust and exposed through `PyO3` and built into
 portable wheels with `maturin` [@pyo3; @maturin]. The release described here,
-**0.8.0**, exposes **173 functions** organized as a task-oriented facade over
+**0.9.0**, exposes **179 functions** organized as a task-oriented facade over
 **43 Rust crates**, and NumPy is the only required runtime dependency.
 
 The design goal is not another forecasting toolkit but a maintained, fast, and
@@ -114,7 +114,7 @@ comfortable default rather than an overnight job.
 
 # Functionality
 
-The 173 functions span the applied workflow end to end:
+The 179 functions span the applied workflow end to end:
 
 - **Diagnostics and exploration**: `acf`, `pacf`, `ljung_box`, `jarque_bera`,
   `arch_lm`; the unit-root battery (`adf`, `kpss`, `dfgls`, `phillips_perron`,
@@ -138,13 +138,18 @@ The 173 functions span the applied workflow end to end:
   `engle_granger`, `phillips_ouliaris`); factor models and `favar`; and
   Diebold–Yilmaz `connectedness`.
 - **Nonlinear and regime dynamics**: threshold autoregressions (`setar`,
-  `setar_test`); smooth-transition LSTAR/ESTAR models by concentrated
+  `setar_test`) with Hansen's likelihood-ratio confidence set for the
+  threshold (`setar_threshold_ci`) [@hansen2000]; smooth-transition LSTAR/ESTAR models by concentrated
   nonlinear least squares with the Teräsvirta modeling cycle (`star`,
   `star_eval`, `star_test`) [@terasvirta1994]; and the multivariate threshold
   pair — a two-regime threshold VAR with a robust sup-Wald test
   (`threshold_var`, `threshold_var_test`) and Hansen–Seo threshold
   cointegration with a fixed-regressor-bootstrap sup-LM test
-  (`threshold_vecm`, `hansen_seo_test`) [@hansenseo2002].
+  (`threshold_vecm`, `hansen_seo_test`) [@hansenseo2002]; and, new in
+  0.9.0, the Koop–Pesaran–Potter generalized impulse-response engine
+  [@koop1996] — `var_girf` on the linear VAR, where it reproduces the
+  Cholesky and Pesaran–Shin responses exactly, and `threshold_var_girf` for
+  the regime-dependent responses of the threshold VAR.
 - **Forecast evaluation**: `dm_test`, `cw_test`, `gw_test`, `theta_forecast`,
   a leakage-checked rolling/expanding `backtest` engine, and distribution-free
   prediction intervals by split, EnbPI, and adaptive conformal inference
@@ -162,19 +167,30 @@ The 173 functions span the applied workflow end to end:
   [@barnichon2019].
 - **Machine learning for econometrics**: penalized regression (`ridge`,
   `lasso`, `elastic_net`, `adaptive_lasso`, `lasso_path`) with leakage-safe
-  time-series cross-validation (`cv_splits`).
+  time-series cross-validation (`cv_splits`); and, new in 0.8.0, kernel ridge
+  and nonparametric regression with a dependence-aware bandwidth selector
+  (`kernel_ridge`, `kernel_regression`), group and sparse-group LASSO with
+  post-selection inference (`group_lasso`, `post_lasso`, `pds_lasso`),
+  regression trees and random forests with block resampling
+  (`regression_tree`, `random_forest`), L1 trend filtering and componentwise
+  boosting (`l1_trend_filter`, `boosting`), and a seed-ensembled feed-forward
+  regressor and echo state network (`mlp_regression`, `echo_state_network`).
 - **Panel, term structure, and structural-economic models**: the mean-group /
   CCE-MG / PMG panel trio (`panel_mean_group`, `panel_pmg`), panel local
-  projections (`panel_lp`); the Nelson–Siegel / Svensson yield curve
-  (`nelson_siegel`, `svensson`, `dynamic_ns`) and its arbitrage-free adjustment
-  (`afns_adjustment`) [@christensen2011]; GMM/IV-GMM (`iv_gmm`,
+  projections (`panel_lp`), and the distributed-lag panel regression of the
+  climate-impact literature (`panel_distributed_lag`) [@dell2012; @burke2015];
+  the Nelson–Siegel / Svensson yield curve
+  (`nelson_siegel`, `svensson`, `dynamic_ns`), its arbitrage-free adjustment
+  (`afns_adjustment`) [@christensen2011], and the Joslin–Singleton–Zhu
+  canonical affine term-structure model (`jsz_fit`, `jsz_loadings`)
+  [@joslin2011]; GMM/IV-GMM (`iv_gmm`,
   `gmm_nonlinear`); survey-expectations tools (`cg_regression`,
   `forecast_efficiency`); recession-probability models (`recession_probit`);
   and a linear rational-expectations solver (`dsge_solve`) that returns the
   Blanchard–Kahn saddle-path solution [@blanchardkahn1980].
 
 Robust inference is served by a single library-wide HAC implementation that
-eighteen of the crates consume, so the same kernel and the same automatic
+nineteen of the crates consume, so the same kernel and the same automatic
 bandwidth rule stand behind `ols(se_type="hac")`, `lp(se="hac")`,
 `hamilton_filter(se="hac")`, `umidas`, and the panel estimators alike, and
 identical settings cannot yield different p-values in different modules. The
@@ -188,11 +204,11 @@ cluster in the panels).
 `tsecon`'s central engineering discipline is that no estimator is included
 without a named golden validation target — a published table, a reference
 implementation, a documented closed form, or a Monte-Carlo size/power check.
-The Rust core carries a large unit and integration suite of **1721 passing
-`#[test]` cases** (1479 integration tests in `crates/*/tests/`, 242 unit tests
-in `src/`); with 54 documentation tests the workspace total is 1775 passing
+The Rust core carries a large unit and integration suite of **1783 passing
+`#[test]` cases** (1538 integration tests in `crates/*/tests/`, 245 unit tests
+in `src/`); with 56 documentation tests the workspace total is 1839 passing
 Rust tests, with 10 explicitly ignored. The Python layer adds a conformance
-suite of 1526 tests across 99 files whose fixtures are gated against
+suite of 1727 tests across 106 files whose fixtures are gated against
 `statsmodels`, `arch`, `linearmodels`, `scikit-learn`, SciPy, and `ArviZ`. The
 replication fixtures *are* the integration test suite.
 
